@@ -16,6 +16,9 @@ export interface OutfitCombo {
   bottom: string;
   shoes: string;
   accessories: string;
+  summary: string;
+  imageUrl?: string;
+  isRegenerating?: boolean;
 }
 
 export interface FashionAdvice {
@@ -23,4 +26,9 @@ export interface FashionAdvice {
   colorCombinations: ColorCombination[];
   outfitCombos: OutfitCombo[];
   personalizedTips: string[];
+}
+
+export interface Ootd {
+  description: string;
+  imageUrl: string;
 }
