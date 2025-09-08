@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import type { FashionAdvice, Ootd, OutfitCombo } from "../types";
+import type { FashionAdvice, Ootd, OutfitCombo, WeeklyPlan, Occasion, OccasionWearResults, DailyOutfit } from "../types";
 
 const API_KEY = process.env.API_KEY;
 
@@ -8,6 +8,25 @@ if (!API_KEY) {
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+const productSuggestionSchema = {
+    type: Type.OBJECT,
+    properties: {
+        description: { type: Type.STRING, description: "A general description of the clothing item (e.g., 'A pair of high-waisted light-wash denim jeans')." },
+        productName: { type: Type.STRING, description: "The specific name of a real-world product example (e.g., 'Levi's 501 Original Fit Jeans'). Use 'N/A' if not applicable." },
+        purchaseLink: { type: Type.STRING, description: "A direct URL where the user can view or purchase the suggested product. Use 'N/A' if not applicable." }
+    },
+    required: ["description", "productName", "purchaseLink"]
+};
+
+const outfitProperties = {
+  occasion: { type: Type.STRING, description: "The occasion for the outfit (e.g., 'Weekend Brunch', 'Work Meeting')." },
+  top: { ...productSuggestionSchema, description: "Suggestion for the top wear." },
+  bottom: { ...productSuggestionSchema, description: "Suggestion for the bottom wear." },
+  shoes: { ...productSuggestionSchema, description: "Suggestion for footwear." },
+  accessories: { ...productSuggestionSchema, description: "Suggested accessories. Use 'None' for description and 'N/A' for name and link if no accessory is suggested." },
+  summary: { type: Type.STRING, description: "A concise, appealing, one-sentence summary of the complete outfit and its vibe. Example: 'White mini dress, classic watch, and stylish sunglasses – perfect for a chic daytime look.'" }
+};
 
 const fashionAdviceSchema = {
   type: Type.OBJECT,
@@ -40,17 +59,10 @@ const fashionAdviceSchema = {
     },
     outfitCombos: {
       type: Type.ARRAY,
-      description: "Provide at least 3 complete outfit combinations (top, bottom, shoes, and optional accessories) suitable for different occasions.",
+      description: "Provide at least 3 complete outfit combinations. For each item (top, bottom, shoes, accessories), suggest a real-world product example with a name and a direct purchase link.",
       items: {
         type: Type.OBJECT,
-        properties: {
-          occasion: { type: Type.STRING, description: "The occasion for the outfit (e.g., 'Weekend Brunch')." },
-          top: { type: Type.STRING, description: "Description of the top wear." },
-          bottom: { type: Type.STRING, description: "Description of the bottom wear." },
-          shoes: { type: Type.STRING, description: "Description of the footwear." },
-          accessories: { type: Type.STRING, description: "Suggested accessories (e.g., 'watch, sunglasses'). Can be 'None'." },
-          summary: { type: Type.STRING, description: "A concise, appealing, one-sentence summary of the complete outfit and its vibe. Example: 'White mini dress, classic watch, and stylish sunglasses – perfect for a chic daytime look.'" }
-        },
+        properties: outfitProperties,
         required: ["occasion", "top", "bottom", "shoes", "accessories", "summary"]
       }
     },
@@ -65,20 +77,82 @@ const fashionAdviceSchema = {
 
 const singleOutfitComboSchema = {
     type: Type.OBJECT,
-    properties: {
-        occasion: { type: Type.STRING, description: "The occasion for the outfit (e.g., 'Weekend Brunch')." },
-        top: { type: Type.STRING, description: "Description of the top wear." },
-        bottom: { type: Type.STRING, description: "Description of the bottom wear." },
-        shoes: { type: Type.STRING, description: "Description of the footwear." },
-        accessories: { type: Type.STRING, description: "Suggested accessories (e.g., 'watch, sunglasses'). Can be 'None'." },
-        summary: { type: Type.STRING, description: "A concise, appealing, one-sentence summary of the complete outfit and its vibe. Example: 'White mini dress, classic watch, and stylish sunglasses – perfect for a chic daytime look.'" }
-    },
+    properties: outfitProperties,
     required: ["occasion", "top", "bottom", "shoes", "accessories", "summary"]
 };
 
+const occasionWearSchema = {
+    type: Type.ARRAY,
+    description: "An array of 3-4 complete outfit combinations for a specific occasion.",
+    items: {
+        type: Type.OBJECT,
+        properties: outfitProperties,
+        required: ["occasion", "top", "bottom", "shoes", "accessories", "summary"]
+    }
+};
+
+const weeklyPlanSchema = {
+    type: Type.ARRAY,
+    description: "A 7-day outfit plan, from Monday to Sunday.",
+    items: {
+        type: Type.OBJECT,
+        properties: {
+            day: { type: Type.STRING, description: "The day of the week (e.g., 'Monday')." },
+            occasion: { type: Type.STRING, description: "A suitable occasion for the day's outfit (e.g., 'Work Presentation', 'Casual Weekend Walk')." },
+            outfit: {
+                type: Type.OBJECT,
+                properties: {
+                    top: { ...productSuggestionSchema, description: "Suggestion for the top wear." },
+                    bottom: { ...productSuggestionSchema, description: "Suggestion for the bottom wear." },
+                    shoes: { ...productSuggestionSchema, description: "Suggestion for footwear." },
+                    accessories: { ...productSuggestionSchema, description: "Suggested accessories." },
+                    summary: { type: Type.STRING, description: "A concise summary of the complete outfit." }
+                },
+                required: ["top", "bottom", "shoes", "accessories", "summary"]
+            }
+        },
+        required: ["day", "occasion", "outfit"]
+    }
+};
+
+async function generateImagesForCombos(combos: OutfitCombo[], imageBase64: string, mimeType: string): Promise<OutfitCombo[]> {
+    const imagePart = { inlineData: { data: imageBase64, mimeType } };
+    
+    const imageGenerationPromises = combos.map(async (combo) => {
+        const outfitDescription = `Top: ${combo.top.description}, Bottom: ${combo.bottom.description}, Shoes: ${combo.shoes.description}, Accessories: ${combo.accessories.description}.`;
+        const imageGenPrompt = `From the provided image, create a new photorealistic image of the person, but dress them in a different outfit suitable for a '${combo.occasion}'. The new outfit is: ${outfitDescription}. Preserve the person's face, hair, and likeness from the original photo. The background should be a clean, minimalist studio setting.`;
+        
+        const imageGenTextPart = { text: imageGenPrompt };
+
+        try {
+            const imageResponse = await ai.models.generateContent({
+                model: 'gemini-2.5-flash-image-preview',
+                contents: { parts: [imagePart, imageGenTextPart] },
+                config: {
+                    responseModalities: [Modality.IMAGE, Modality.TEXT],
+                },
+            });
+            
+            const generatedImagePart = imageResponse.candidates?.[0]?.content?.parts.find(part => part.inlineData);
+            if (generatedImagePart && generatedImagePart.inlineData) {
+                const { data, mimeType } = generatedImagePart.inlineData;
+                combo.imageUrl = `data:${mimeType};base64,${data}`;
+            } else {
+                combo.imageError = true;
+            }
+        } catch (error) {
+            console.error(`Failed to generate image for combo: ${combo.occasion}`, error);
+            combo.imageError = true;
+        }
+        return combo;
+    });
+
+    return Promise.all(imageGenerationPromises);
+}
+
 
 export const getFashionAdvice = async (imageBase64: string, mimeType: string): Promise<FashionAdvice> => {
-  const prompt = "You are an expert AI fashion stylist. Analyze the person in this image and provide personalized fashion recommendations. Consider their apparent body type, face structure, skin tone, hair color, and estimated age to give detailed and helpful advice. Structure your response according to the provided JSON schema. Ensure your advice is positive, encouraging, and respectful.";
+  const prompt = "You are an expert AI fashion stylist. Analyze the person in this image and provide personalized fashion recommendations. Consider their apparent body type, face structure, skin tone, hair color, and estimated age. For each outfit combination, you MUST suggest a real-world product example for each item (top, bottom, shoes, accessories) including a product name and a direct, valid purchase link. If no specific accessory is suitable, use 'None' for the description and 'N/A' for the product name and link. Structure your response according to the provided JSON schema. Ensure your advice is positive, encouraging, and respectful.";
 
   const imagePart = {
     inlineData: {
@@ -106,50 +180,12 @@ export const getFashionAdvice = async (imageBase64: string, mimeType: string): P
     const jsonText = textResponse.text.trim();
     const advice = JSON.parse(jsonText) as FashionAdvice;
 
-    // Assign unique IDs to each outfit combo for tracking ratings
     advice.outfitCombos = advice.outfitCombos.map(combo => ({
       ...combo,
       id: crypto.randomUUID(),
     }));
     
-    // Generate images for each outfit combo
-    const imageGenerationPromises = advice.outfitCombos.map(async (combo) => {
-      const outfitDescription = `Top: ${combo.top}, Bottom: ${combo.bottom}, Shoes: ${combo.shoes}, Accessories: ${combo.accessories}.`;
-      const imageGenPrompt = `From the provided image, create a new photorealistic image of the person, but dress them in a different outfit suitable for a '${combo.occasion}'. The new outfit is: ${outfitDescription}. Preserve the person's face, hair, and likeness from the original photo. The background should be a clean, minimalist studio setting.`;
-      
-      const imageGenTextPart = { text: imageGenPrompt };
-
-      try {
-        const imageResponse = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image-preview',
-          contents: { parts: [imagePart, imageGenTextPart] },
-          config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-          },
-        });
-        
-        const generatedImagePart = imageResponse.candidates?.[0]?.content?.parts.find(part => part.inlineData);
-        if (generatedImagePart && generatedImagePart.inlineData) {
-          const { data, mimeType } = generatedImagePart.inlineData;
-          return { url: `data:${mimeType};base64,${data}` };
-        }
-        return { error: true };
-      } catch (error) {
-        console.error(`Failed to generate image for combo: ${combo.occasion}`, error);
-        return { error: true };
-      }
-    });
-
-    const generatedImageResults = await Promise.all(imageGenerationPromises);
-
-    advice.outfitCombos.forEach((combo, index) => {
-      const result = generatedImageResults[index];
-       if (result && 'url' in result && result.url) {
-        combo.imageUrl = result.url;
-      } else {
-        combo.imageError = true;
-      }
-    });
+    advice.outfitCombos = await generateImagesForCombos(advice.outfitCombos, imageBase64, mimeType);
 
     return advice;
 
@@ -174,6 +210,7 @@ export const regenerateOutfitCombo = async (imageBase64: string, mimeType: strin
     }
 
     const textGenPrompt = `You are an expert AI fashion stylist. Analyze the person in the provided image. Suggest a *new and different* outfit combination for the occasion: '${existingCombo.occasion}'. 
+    For the new outfit, suggest real-world product examples for each item and provide valid purchase links. If no accessory is needed, use 'None' for the description and 'N/A' for other fields.
     Your previous suggestion was: "${existingCombo.summary}". 
     ${feedbackContext}
     Structure your response according to the provided JSON schema. Ensure your advice is positive and encouraging. The occasion must remain '${existingCombo.occasion}'.`;
@@ -192,9 +229,8 @@ export const regenerateOutfitCombo = async (imageBase64: string, mimeType: strin
     
     const newComboText = JSON.parse(textResponse.text.trim()) as Omit<OutfitCombo, 'id' | 'imageUrl' | 'isRegenerating' | 'rating'>;
 
-    // Step 2: Generate new image based on the new description
     try {
-      const outfitDescription = `Top: ${newComboText.top}, Bottom: ${newComboText.bottom}, Shoes: ${newComboText.shoes}, Accessories: ${newComboText.accessories}.`;
+      const outfitDescription = `Top: ${newComboText.top.description}, Bottom: ${newComboText.bottom.description}, Shoes: ${newComboText.shoes.description}, Accessories: ${newComboText.accessories.description}.`;
       const imageGenPrompt = `From the provided image, create a new photorealistic image of the person, but dress them in a different outfit suitable for a '${newComboText.occasion}'. The new outfit is: ${outfitDescription}. Preserve the person's face, hair, and likeness from the original photo. The background should be a clean, minimalist studio setting.`;
       
       const imageGenTextPart = { text: imageGenPrompt };
@@ -214,13 +250,13 @@ export const regenerateOutfitCombo = async (imageBase64: string, mimeType: strin
         const imageUrl = `data:${imgMimeType};base64,${data}`;
         return { ...newComboText, id: newId, imageUrl, imageError: false };
       } else {
-        console.warn("Image generation failed for regenerated outfit, returning text only.");
-        return { ...newComboText, id: newId, imageUrl: undefined, imageError: true };
+        console.warn("Image generation failed for regenerated outfit, using previous image as fallback.");
+        return { ...newComboText, id: newId, imageUrl: existingCombo.imageUrl, imageError: true };
       }
     } catch (imageError) {
       console.error("Error during image generation for regenerated outfit:", imageError);
       const newId = crypto.randomUUID();
-      return { ...newComboText, id: newId, imageUrl: undefined, imageError: true };
+      return { ...newComboText, id: newId, imageUrl: existingCombo.imageUrl, imageError: true };
     }
   } catch (error) {
     console.error("Error regenerating outfit combo text:", error);
@@ -270,4 +306,90 @@ export const getOotd = async (): Promise<Ootd> => {
     console.error("Error getting OOTD from Gemini API:", error);
     throw new Error("Failed to get Outfit of the Day.");
   }
+};
+
+export const getWeeklyPlan = async (imageBase64: string, mimeType: string): Promise<WeeklyPlan> => {
+    const prompt = "You are an expert AI fashion stylist. Analyze the person in this image. Create a personalized 7-day style plan from Monday to Sunday. For each day, suggest a suitable occasion and a complete outfit. For each outfit item (top, bottom, shoes, accessories), you MUST suggest a real-world product example with a product name and a direct, valid purchase link. If an item isn't needed, use 'None' or 'N/A' appropriately. Ensure your advice is positive, encouraging, and respectful. Structure your response according to the provided JSON schema.";
+
+    const imagePart = {
+        inlineData: { data: imageBase64, mimeType: mimeType }
+    };
+
+    const textPart = { text: prompt };
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: [imagePart, textPart] },
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: weeklyPlanSchema,
+                temperature: 0.8,
+            }
+        });
+
+        const jsonText = response.text.trim();
+        const planData: Omit<DailyOutfit, 'outfit'>[] = JSON.parse(jsonText);
+
+        const outfitsToProcess: OutfitCombo[] = planData.map((dayPlan: any) => ({
+            ...dayPlan.outfit,
+            id: crypto.randomUUID(),
+            occasion: dayPlan.occasion,
+        }));
+
+        const outfitsWithImages = await generateImagesForCombos(outfitsToProcess, imageBase64, mimeType);
+
+        const imageMap = new Map(outfitsWithImages.map(o => [o.id, o]));
+        
+        const finalPlan: WeeklyPlan = planData.map((dayPlan, index) => {
+            const originalOutfitWithId = outfitsToProcess[index];
+            const processedOutfit = imageMap.get(originalOutfitWithId.id);
+            return {
+                ...dayPlan,
+                outfit: processedOutfit!,
+            };
+        });
+
+        return finalPlan;
+
+    } catch (error) {
+        console.error("Error calling Gemini API for weekly plan:", error);
+        throw new Error("Failed to get weekly plan from Gemini API.");
+    }
+};
+
+export const getOccasionWear = async (occasion: Occasion, imageBase64: string, mimeType: string): Promise<OccasionWearResults> => {
+    const prompt = `You are an expert AI fashion stylist. Analyze the person in this image. Create 3 complete, stylish, and appropriate outfit combinations for a "${occasion}" event. For each outfit, suggest real-world product examples for each item (top, bottom, shoes, accessories) including a product name and a direct, valid purchase link. If no specific accessory is suitable, use 'None' for the description and 'N/A' for the product name and link. Ensure your advice is positive, encouraging, and respectful. Structure your response according to the provided JSON schema. The occasion for each generated outfit must be '${occasion}'.`;
+
+    const imagePart = {
+        inlineData: { data: imageBase64, mimeType: mimeType }
+    };
+    const textPart = { text: prompt };
+
+    try {
+        const textResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: [imagePart, textPart] },
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: occasionWearSchema,
+                temperature: 0.8,
+            }
+        });
+        
+        let results = JSON.parse(textResponse.text.trim()) as OccasionWearResults;
+
+        results = results.map(combo => ({
+          ...combo,
+          id: crypto.randomUUID(),
+        }));
+
+        results = await generateImagesForCombos(results, imageBase64, mimeType);
+        
+        return results;
+
+    } catch (error) {
+        console.error(`Error calling Gemini API for ${occasion} wear:`, error);
+        throw new Error(`Failed to get ${occasion} wear from Gemini API.`);
+    }
 };
