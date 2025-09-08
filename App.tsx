@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { getFashionAdvice, getOotd, regenerateOutfitCombo } from './services/geminiService';
 import type { FashionAdvice, Ootd } from './types';
 import ImageUploader from './components/ImageUploader';
@@ -54,10 +54,24 @@ const App: React.FC = () => {
     setIsLoading(true);
     setFashionAdvice(null);
     setError(null);
+    localStorage.removeItem('fashionRatings'); // Clear old ratings
 
     try {
       const { base64, mimeType } = await fileToBase64(imageFile);
       const advice = await getFashionAdvice(base64, mimeType);
+      
+      // Check for any saved ratings from this session
+      try {
+        const savedRatings = JSON.parse(localStorage.getItem('fashionRatings') || '{}');
+        advice.outfitCombos.forEach(combo => {
+            if (savedRatings[combo.id]) {
+                combo.rating = savedRatings[combo.id];
+            }
+        });
+      } catch (e) {
+        console.error("Could not parse ratings from localStorage", e);
+      }
+      
       setFashionAdvice(advice);
     } catch (err) {
       console.error(err);
@@ -73,6 +87,7 @@ const App: React.FC = () => {
     setFashionAdvice(null);
     setError(null);
     setIsLoading(false);
+    localStorage.removeItem('fashionRatings');
   }
 
   const handleFetchOotd = useCallback(async () => {
@@ -116,6 +131,35 @@ const App: React.FC = () => {
         }
     }
   }, [ootd]);
+
+  const handleRateOutfit = useCallback((outfitId: string, newRating: 'like' | 'dislike') => {
+    if (!fashionAdvice) return;
+
+    const updatedCombos = fashionAdvice.outfitCombos.map(combo => {
+      if (combo.id === outfitId) {
+        // If the user clicks the same rating again, toggle it off
+        const finalRating = combo.rating === newRating ? undefined : newRating;
+        return { ...combo, rating: finalRating };
+      }
+      return combo;
+    });
+
+    setFashionAdvice({ ...fashionAdvice, outfitCombos: updatedCombos });
+
+    // Update localStorage
+    try {
+      const ratings = JSON.parse(localStorage.getItem('fashionRatings') || '{}');
+      const comboToUpdate = updatedCombos.find(c => c.id === outfitId);
+      if (comboToUpdate?.rating) {
+        ratings[outfitId] = comboToUpdate.rating;
+      } else {
+        delete ratings[outfitId];
+      }
+      localStorage.setItem('fashionRatings', JSON.stringify(ratings));
+    } catch (e) {
+      console.error("Failed to save ratings to localStorage", e);
+    }
+  }, [fashionAdvice]);
 
   const handleRegenerateOutfit = useCallback(async (indexToRegenerate: number) => {
     if (!fashionAdvice || !imageFile) return;
@@ -249,7 +293,7 @@ const App: React.FC = () => {
                 </section>
               </div>
             ) : (
-              <StyleResults advice={fashionAdvice} onReset={handleReset} onRegenerateOutfit={handleRegenerateOutfit} />
+              <StyleResults advice={fashionAdvice} onReset={handleReset} onRegenerateOutfit={handleRegenerateOutfit} onRateOutfit={handleRateOutfit} />
             )}
 
             {error && (

@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import type { FashionAdvice, OutfitSuggestion } from '../types';
-import { ShirtIcon, PaletteIcon, StarIcon, LightbulbIcon, ArrowLeftIcon, HeartIcon, BookmarkIcon, ShareIcon, RefreshIcon } from './Icons';
+import type { FashionAdvice, OutfitSuggestion, OutfitCombo } from '../types';
+import { ShirtIcon, PaletteIcon, StarIcon, LightbulbIcon, ArrowLeftIcon, HeartIcon, BookmarkIcon, ShareIcon, RefreshIcon, ExclamationTriangleIcon, ThumbsUpIcon, ThumbsDownIcon } from './Icons';
 
 interface StyleResultsProps {
   advice: FashionAdvice | null;
   onReset: () => void;
   onRegenerateOutfit: (index: number) => void;
+  onRateOutfit: (outfitId: string, rating: 'like' | 'dislike') => void;
 }
 
-const StyleResults: React.FC<StyleResultsProps> = ({ advice, onReset, onRegenerateOutfit }) => {
+const StyleResults: React.FC<StyleResultsProps> = ({ advice, onReset, onRegenerateOutfit, onRateOutfit }) => {
   const [favorites, setFavorites] = useState<OutfitSuggestion[]>([]);
   const [view, setView] = useState<'results' | 'favorites'>('results');
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied'>('idle');
@@ -157,9 +158,17 @@ const StyleResults: React.FC<StyleResultsProps> = ({ advice, onReset, onRegenera
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {advice.outfitCombos.map((outfit, index) => (
-              <div key={index} className="bg-stone-50 rounded-lg shadow-sm overflow-hidden flex flex-col border border-stone-200">
+              <div key={outfit.id} className="bg-stone-50 rounded-lg shadow-sm overflow-hidden flex flex-col border border-stone-200">
                  <div className="relative w-full h-80">
-                  {outfit.imageUrl ? (
+                  {outfit.imageError ? (
+                     <div className="w-full h-full bg-red-50 border-b border-red-200 flex items-center justify-center p-4">
+                        <div className="text-center text-red-700">
+                          <ExclamationTriangleIcon className="w-10 h-10 mx-auto mb-2 opacity-80"/>
+                          <p className="font-semibold">Image Generation Failed</p>
+                          <p className="text-sm mt-1">Please try regenerating.</p>
+                        </div>
+                      </div>
+                  ) : outfit.imageUrl ? (
                     <img src={outfit.imageUrl} alt={`Virtual try-on for ${outfit.occasion}`} className="w-full h-full object-cover object-top"/>
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center animate-pulse">
@@ -179,18 +188,37 @@ const StyleResults: React.FC<StyleResultsProps> = ({ advice, onReset, onRegenera
                   )}
                 </div>
                 <div className="p-4 flex-grow flex flex-col">
-                  <div className="flex justify-between items-start gap-2">
-                    <h3 className="font-bold text-lg text-gray-900">{`Outfit ${index + 1}`}</h3>
-                    <button 
-                      onClick={() => onRegenerateOutfit(index)} 
-                      className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                      aria-label="Regenerate this outfit"
-                      disabled={outfit.isRegenerating}
-                    >
-                      <RefreshIcon className="w-5 h-5" />
-                    </button>
+                  <h3 className="font-bold text-lg text-gray-900">{`Outfit for ${outfit.occasion}`}</h3>
+                  <div className="flex-grow mt-1">
+                    <p className="text-sm text-gray-700">{outfit.summary}</p>
+                    <div className="mt-4 pt-4 border-t border-stone-200 text-sm">
+                        <ul className="space-y-1.5 text-gray-600">
+                            <li><span className="font-semibold text-gray-800">Top:</span> {outfit.top}</li>
+                            <li><span className="font-semibold text-gray-800">Bottom:</span> {outfit.bottom}</li>
+                            <li><span className="font-semibold text-gray-800">Shoes:</span> {outfit.shoes}</li>
+                            <li><span className="font-semibold text-gray-800">Accessories:</span> {outfit.accessories}</li>
+                        </ul>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-700 mt-1 flex-grow">{outfit.summary}</p>
+                  <div className="mt-4 pt-3 border-t border-stone-200 flex justify-between items-center gap-2">
+                     <button 
+                       onClick={() => onRegenerateOutfit(index)} 
+                       className="inline-flex items-center text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50"
+                       disabled={outfit.isRegenerating}
+                       aria-label="Get a new look for this outfit"
+                     >
+                       <RefreshIcon className="w-4 h-4 mr-2" />
+                       <span>New Look</span>
+                     </button>
+                     <div className="flex items-center gap-2">
+                       <button onClick={() => onRateOutfit(outfit.id, 'like')} aria-label="Like this outfit">
+                          <ThumbsUpIcon className="w-6 h-6 text-gray-400 hover:text-green-500 transition-colors" fill={outfit.rating === 'like' ? 'currentColor' : 'none'}/>
+                       </button>
+                       <button onClick={() => onRateOutfit(outfit.id, 'dislike')} aria-label="Dislike this outfit">
+                          <ThumbsDownIcon className="w-6 h-6 text-gray-400 hover:text-red-500 transition-colors" fill={outfit.rating === 'dislike' ? 'currentColor' : 'none'}/>
+                       </button>
+                     </div>
+                  </div>
                 </div>
               </div>
             ))}

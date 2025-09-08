@@ -105,6 +105,12 @@ export const getFashionAdvice = async (imageBase64: string, mimeType: string): P
 
     const jsonText = textResponse.text.trim();
     const advice = JSON.parse(jsonText) as FashionAdvice;
+
+    // Assign unique IDs to each outfit combo for tracking ratings
+    advice.outfitCombos = advice.outfitCombos.map(combo => ({
+      ...combo,
+      id: crypto.randomUUID(),
+    }));
     
     // Generate images for each outfit combo
     const imageGenerationPromises = advice.outfitCombos.map(async (combo) => {
@@ -125,20 +131,23 @@ export const getFashionAdvice = async (imageBase64: string, mimeType: string): P
         const generatedImagePart = imageResponse.candidates?.[0]?.content?.parts.find(part => part.inlineData);
         if (generatedImagePart && generatedImagePart.inlineData) {
           const { data, mimeType } = generatedImagePart.inlineData;
-          return `data:${mimeType};base64,${data}`;
+          return { url: `data:${mimeType};base64,${data}` };
         }
-        return null;
+        return { error: true };
       } catch (error) {
         console.error(`Failed to generate image for combo: ${combo.occasion}`, error);
-        return null;
+        return { error: true };
       }
     });
 
-    const generatedImageUrls = await Promise.all(imageGenerationPromises);
+    const generatedImageResults = await Promise.all(imageGenerationPromises);
 
     advice.outfitCombos.forEach((combo, index) => {
-      if (generatedImageUrls[index]) {
-        combo.imageUrl = generatedImageUrls[index] as string;
+      const result = generatedImageResults[index];
+       if (result && 'url' in result && result.url) {
+        combo.imageUrl = result.url;
+      } else {
+        combo.imageError = true;
       }
     });
 
@@ -154,9 +163,19 @@ export const regenerateOutfitCombo = async (imageBase64: string, mimeType: strin
   const imagePart = { inlineData: { data: imageBase64, mimeType } };
 
   try {
-    // Step 1: Generate new text description
+    // Step 1: Generate new text description, incorporating feedback
+    let feedbackContext = "";
+    if (existingCombo.rating) {
+      if (existingCombo.rating === 'like') {
+        feedbackContext = `The user LIKED the previous suggestion. Create something with a similar vibe but with a creative, alternative twist.`;
+      } else {
+        feedbackContext = `The user DISLIKED the previous suggestion. Please generate something completely different and avoid elements from the last one.`;
+      }
+    }
+
     const textGenPrompt = `You are an expert AI fashion stylist. Analyze the person in the provided image. Suggest a *new and different* outfit combination for the occasion: '${existingCombo.occasion}'. 
-    Your previous suggestion was: "${existingCombo.summary}". Please provide a fresh alternative.
+    Your previous suggestion was: "${existingCombo.summary}". 
+    ${feedbackContext}
     Structure your response according to the provided JSON schema. Ensure your advice is positive and encouraging. The occasion must remain '${existingCombo.occasion}'.`;
     
     const textPart = { text: textGenPrompt };
@@ -171,32 +190,40 @@ export const regenerateOutfitCombo = async (imageBase64: string, mimeType: strin
         }
     });
     
-    const newComboText = JSON.parse(textResponse.text.trim()) as Omit<OutfitCombo, 'imageUrl' | 'isRegenerating'>;
+    const newComboText = JSON.parse(textResponse.text.trim()) as Omit<OutfitCombo, 'id' | 'imageUrl' | 'isRegenerating' | 'rating'>;
 
     // Step 2: Generate new image based on the new description
-    const outfitDescription = `Top: ${newComboText.top}, Bottom: ${newComboText.bottom}, Shoes: ${newComboText.shoes}, Accessories: ${newComboText.accessories}.`;
-    const imageGenPrompt = `From the provided image, create a new photorealistic image of the person, but dress them in a different outfit suitable for a '${newComboText.occasion}'. The new outfit is: ${outfitDescription}. Preserve the person's face, hair, and likeness from the original photo. The background should be a clean, minimalist studio setting.`;
-    
-    const imageGenTextPart = { text: imageGenPrompt };
+    try {
+      const outfitDescription = `Top: ${newComboText.top}, Bottom: ${newComboText.bottom}, Shoes: ${newComboText.shoes}, Accessories: ${newComboText.accessories}.`;
+      const imageGenPrompt = `From the provided image, create a new photorealistic image of the person, but dress them in a different outfit suitable for a '${newComboText.occasion}'. The new outfit is: ${outfitDescription}. Preserve the person's face, hair, and likeness from the original photo. The background should be a clean, minimalist studio setting.`;
+      
+      const imageGenTextPart = { text: imageGenPrompt };
 
-    const imageResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image-preview',
-      contents: { parts: [imagePart, imageGenTextPart] },
-      config: {
-        responseModalities: [Modality.IMAGE, Modality.TEXT],
-      },
-    });
+      const imageResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image-preview',
+        contents: { parts: [imagePart, imageGenTextPart] },
+        config: {
+          responseModalities: [Modality.IMAGE, Modality.TEXT],
+        },
+      });
 
-    const generatedImagePart = imageResponse.candidates?.[0]?.content?.parts.find(part => part.inlineData);
-    if (generatedImagePart && generatedImagePart.inlineData) {
-      const { data, mimeType: imgMimeType } = generatedImagePart.inlineData;
-      const imageUrl = `data:${imgMimeType};base64,${data}`;
-      return { ...newComboText, imageUrl };
-    } else {
-      throw new Error("Failed to generate a new image for the outfit.");
+      const newId = crypto.randomUUID();
+      const generatedImagePart = imageResponse.candidates?.[0]?.content?.parts.find(part => part.inlineData);
+      if (generatedImagePart && generatedImagePart.inlineData) {
+        const { data, mimeType: imgMimeType } = generatedImagePart.inlineData;
+        const imageUrl = `data:${imgMimeType};base64,${data}`;
+        return { ...newComboText, id: newId, imageUrl, imageError: false };
+      } else {
+        console.warn("Image generation failed for regenerated outfit, returning text only.");
+        return { ...newComboText, id: newId, imageUrl: undefined, imageError: true };
+      }
+    } catch (imageError) {
+      console.error("Error during image generation for regenerated outfit:", imageError);
+      const newId = crypto.randomUUID();
+      return { ...newComboText, id: newId, imageUrl: undefined, imageError: true };
     }
   } catch (error) {
-    console.error("Error regenerating outfit combo:", error);
+    console.error("Error regenerating outfit combo text:", error);
     throw new Error("Failed to regenerate outfit combo.");
   }
 };

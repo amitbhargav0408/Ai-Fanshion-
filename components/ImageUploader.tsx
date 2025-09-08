@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { UploadIcon, XCircleIcon, CameraIcon } from './Icons';
+import React, { useRef } from 'react';
+import { UploadIcon, XCircleIcon } from './Icons';
 
 interface ImageUploaderProps {
   onImageUpload: (file: File) => void;
@@ -9,11 +9,6 @@ interface ImageUploaderProps {
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, imagePreviewUrl, onClear }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  const [cameraActive, setCameraActive] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -39,54 +34,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, imagePrevi
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
-  
-  const startCamera = async () => {
-    setCameraError(null);
-    try {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setCameraActive(true);
-    } catch (err) {
-      console.error("Camera access denied:", err);
-      setCameraError("Could not access the camera. Please check your browser permissions and try again.");
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
-  };
-
-  const handleCapture = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext('2d');
-    if (context) {
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
-          onImageUpload(file);
-        }
-        stopCamera();
-      }, 'image/jpeg', 0.95);
-    } else {
-      stopCamera();
-    }
-  };
 
 
   if (imagePreviewUrl) {
@@ -100,31 +47,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, imagePrevi
         >
           <XCircleIcon className="w-8 h-8 text-red-500" />
         </button>
-      </div>
-    );
-  }
-
-  if (cameraActive) {
-    return (
-      <div className="w-full max-w-md mx-auto animate-fade-in">
-        <div className="relative bg-black rounded-xl overflow-hidden shadow-lg border-4 border-gray-200">
-          <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto" />
-        </div>
-        <div className="mt-6 flex justify-center items-center gap-4">
-           <button
-            onClick={stopCamera}
-            className="px-8 py-3 bg-gray-200 text-gray-800 font-semibold rounded-full hover:bg-gray-300 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleCapture}
-            className="inline-flex items-center justify-center p-4 bg-red-600 text-white font-bold rounded-full hover:bg-red-700 transition-all duration-300 transform hover:scale-110 shadow-lg ring-4 ring-red-300 ring-opacity-50"
-            aria-label="Capture photo"
-          >
-            <CameraIcon className="w-8 h-8" />
-          </button>
-        </div>
       </div>
     );
   }
@@ -152,23 +74,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, imagePrevi
           <h3 className="text-xl font-semibold text-gray-700">Drag & Drop or Click to Upload</h3>
           <p className="mt-1 text-sm">PNG, JPG, or WEBP. (Your photo is private and not stored)</p>
         </div>
-      </div>
-
-      <div className="flex items-center my-6">
-        <div className="flex-grow border-t border-gray-300"></div>
-        <span className="flex-shrink mx-4 text-gray-500 font-semibold">OR</span>
-        <div className="flex-grow border-t border-gray-300"></div>
-      </div>
-      
-      <div className="text-center">
-        <button
-          onClick={startCamera}
-          className="inline-flex items-center justify-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
-        >
-          <CameraIcon className="w-6 h-6 mr-3" />
-          Take a Photo
-        </button>
-        {cameraError && <p className="text-red-500 text-sm mt-4">{cameraError}</p>}
       </div>
     </div>
   );

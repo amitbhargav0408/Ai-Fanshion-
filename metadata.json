@@ -1,7 +1,5 @@
 {
   "name": "AI Fashion Stylist",
   "description": "An AI-powered fashion assistant that analyzes your photo to provide personalized style recommendations, including outfit suggestions, color palettes, and complete outfit combos.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

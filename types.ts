@@ -11,6 +11,7 @@ export interface ColorCombination {
 }
 
 export interface OutfitCombo {
+  id: string;
   occasion: string;
   top: string;
   bottom: string;
@@ -19,6 +20,8 @@ export interface OutfitCombo {
   summary: string;
   imageUrl?: string;
   isRegenerating?: boolean;
+  imageError?: boolean;
+  rating?: 'like' | 'dislike';
 }
 
 export interface FashionAdvice {
