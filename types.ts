@@ -19,8 +19,9 @@ export interface ProductSuggestion {
 export interface OutfitCombo {
   id: string;
   occasion: string;
-  top: ProductSuggestion;
-  bottom: ProductSuggestion;
+  top?: ProductSuggestion;
+  bottom?: ProductSuggestion;
+  dress?: ProductSuggestion;
   shoes: ProductSuggestion;
   accessories: ProductSuggestion;
   summary: string;
@@ -52,5 +53,26 @@ export interface DailyOutfit {
 export type WeeklyPlan = DailyOutfit[];
 
 // New types for the Occasion Wear feature
-export type Occasion = 'Wedding' | 'Reception' | 'Party' | 'Mehendi' | 'Festival';
+export type Occasion = 'Wedding' | 'Reception' | 'Party' | 'Mehendi' | 'Festival' | 'Saree';
 export type OccasionWearResults = OutfitCombo[];
+
+// New types for Coordinated Styling
+export interface CoordinatedOutfitSet {
+  id: string;
+  occasion: string;
+  person1Outfit: Omit<OutfitCombo, 'id' | 'occasion' | 'rating' | 'isRegenerating' | 'imageError' | 'imageUrl'>;
+  person2Outfit: Omit<OutfitCombo, 'id' | 'occasion' | 'rating' | 'isRegenerating' | 'imageError' | 'imageUrl'>;
+  coordinationRationale: string;
+  imageUrl?: string;
+  imageError?: boolean;
+}
+
+export interface CoordinatedAdvice {
+  overallSummary: string;
+  outfitSets: CoordinatedOutfitSet[];
+}
+
+export interface UserPreferences {
+  preferredColors?: string;
+  dislikedStyles?: string;
+}

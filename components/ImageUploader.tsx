@@ -54,7 +54,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, imagePrevi
   return (
     <div className="w-full max-w-md mx-auto">
       <div
-        className="w-full border-4 border-dashed border-gray-300 rounded-2xl p-8 text-center cursor-pointer hover:border-gray-400 transition-all duration-300 bg-gray-50"
+        className="w-full border-4 border-dashed border-gray-300 rounded-2xl p-8 text-center cursor-pointer hover:border-yellow-400 transition-all duration-300 bg-gray-100"
         onClick={triggerFileInput}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -71,7 +71,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, imagePrevi
         />
         <div className="flex flex-col items-center justify-center text-gray-500 pointer-events-none">
           <UploadIcon className="w-16 h-16 mb-4 text-gray-400" />
-          <h3 className="text-xl font-semibold text-gray-700">Drag & Drop or Click to Upload</h3>
+          <h3 className="text-xl font-semibold text-gray-800">Drag & Drop or Click to Upload</h3>
           <p className="mt-1 text-sm">PNG, JPG, or WEBP. (Your photo is private and not stored)</p>
         </div>
       </div>
