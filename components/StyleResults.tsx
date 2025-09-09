@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { FashionAdvice, OutfitSuggestion, OutfitCombo } from '../types';
-import { ShirtIcon, PaletteIcon, StarIcon, LightbulbIcon, ArrowLeftIcon, HeartIcon, BookmarkIcon, ShareIcon, RefreshIcon, ExclamationTriangleIcon, ThumbsUpIcon, ThumbsDownIcon, CheckIcon } from './Icons';
+import { ShirtIcon, PaletteIcon, StarIcon, LightbulbIcon, ArrowLeftIcon, HeartIcon, BookmarkIcon, ShareIcon, RefreshIcon, ExclamationTriangleIcon, ThumbsUpIcon, ThumbsDownIcon, CheckIcon, DownloadIcon } from './Icons';
 import ProductItem from './ProductItem';
 
 interface StyleResultsProps {
@@ -9,9 +9,10 @@ interface StyleResultsProps {
   onRegenerateOutfit: (index: number) => void;
   onRateOutfit: (outfitId: string, rating: 'like' | 'dislike') => void;
   onImageZoom: (url: string) => void;
+  onDownloadImage: (imageUrl: string, filename: string) => void;
 }
 
-const StyleResults: React.FC<StyleResultsProps> = ({ advice, onReset, onRegenerateOutfit, onRateOutfit, onImageZoom }) => {
+const StyleResults: React.FC<StyleResultsProps> = ({ advice, onReset, onRegenerateOutfit, onRateOutfit, onImageZoom, onDownloadImage }) => {
   const [favorites, setFavorites] = useState<OutfitSuggestion[]>([]);
   const [view, setView] = useState<'results' | 'favorites'>('results');
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied'>('idle');
@@ -47,8 +48,42 @@ const StyleResults: React.FC<StyleResultsProps> = ({ advice, onReset, onRegenera
   const handleShare = async () => {
     if (!advice) return;
 
-    const suggestedStyles = advice.outfitSuggestions.map(s => s.style).join(', ');
-    const shareText = `Check out my personalized fashion advice from the AI Stylist! It suggested styles like ${suggestedStyles} and cool outfit combos. #AIFashionStylist #PersonalStyle`;
+    const parts = [
+      "I just got some amazing, personalized fashion advice from the AI Stylist! Here's a peek at my new style guide:\n",
+    ];
+
+    // Add more detailed style suggestions
+    if (advice.outfitSuggestions.length > 0) {
+      parts.push('✨ Top Style Suggestion:');
+      const topSuggestion = advice.outfitSuggestions[0];
+      // A short snippet of the description, taking the first sentence.
+      const descriptionSnippet = topSuggestion.description.split('. ')[0];
+      parts.push(`- ${topSuggestion.style}: "${descriptionSnippet}."`);
+    }
+
+    // Add more detailed color palette info
+    if (advice.colorCombinations.length > 0) {
+      const combo = advice.colorCombinations[0];
+      // List first 3 colors for a richer preview
+      const colorExamples = combo.colors.slice(0, 3).join(', ');
+      parts.push(`\n🎨 Recommended Color Palette: ${combo.paletteName} (e.g., ${colorExamples})`);
+    }
+    
+    // Add a key personalized tip
+    if (advice.personalizedTips.length > 0) {
+      parts.push(`\n💡 Key Personalized Tip:`);
+      parts.push(`- "${advice.personalizedTips[0]}"`);
+    }
+    
+    // Add a mention of a favorite virtual outfit to make it more engaging
+    if (advice.outfitCombos.length > 0) {
+        const favoriteLook = advice.outfitCombos[0];
+        parts.push(`\n👗 My Favorite Virtual Look: A stunning outfit for a "${favoriteLook.occasion}"!`);
+    }
+
+    parts.push("\n\nReady to discover your perfect style? Try the AI Fashion Stylist! #AIFashionStylist #PersonalStyle #AIStylist #FashionTech");
+    
+    const shareText = parts.join('\n');
     
     const shareData = {
       title: 'My AI Fashion Advice',
@@ -207,9 +242,19 @@ const StyleResults: React.FC<StyleResultsProps> = ({ advice, onReset, onRegenera
                         </div>
                       </div>
                   ) : outfit.imageUrl ? (
-                    <div onClick={() => onImageZoom(outfit.imageUrl!)} className="w-full h-full cursor-zoom-in">
-                      <img src={outfit.imageUrl} alt={`Virtual try-on for ${outfit.occasion}`} className="w-full h-full object-cover object-top"/>
-                    </div>
+                    <>
+                      <div onClick={() => onImageZoom(outfit.imageUrl!)} className="w-full h-full cursor-zoom-in">
+                        <img src={outfit.imageUrl} alt={`Virtual try-on for ${outfit.occasion}`} className="w-full h-full object-cover object-top"/>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDownloadImage(outfit.imageUrl!, `virtual-try-on-${outfit.occasion.toLowerCase().replace(/\s+/g, '-')}`) }}
+                        className="absolute top-3 right-3 p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors z-10"
+                        title="Download image"
+                        aria-label="Download image"
+                      >
+                          <DownloadIcon className="w-6 h-6" />
+                      </button>
+                    </>
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                         <div className="text-center text-gray-500">

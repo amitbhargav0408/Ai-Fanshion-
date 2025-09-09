@@ -1,17 +1,18 @@
 import React from 'react';
 import type { WeeklyPlan } from '../types';
-import { ArrowLeftIcon, CalendarWeekIcon, StarIcon, ExclamationTriangleIcon } from './Icons';
+import { ArrowLeftIcon, CalendarWeekIcon, StarIcon, ExclamationTriangleIcon, DownloadIcon } from './Icons';
 import ProductItem from './ProductItem';
 
 interface WeeklyPlanViewProps {
   plan: WeeklyPlan | null;
   onReset: () => void;
   onImageZoom: (url: string) => void;
+  onDownloadImage: (imageUrl: string, filename: string) => void;
 }
 
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({ plan, onReset, onImageZoom }) => {
+const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({ plan, onReset, onImageZoom, onDownloadImage }) => {
   if (!plan) return null;
 
   // Sort the plan according to the dayOrder array
@@ -48,9 +49,19 @@ const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({ plan, onReset, onImageZ
                       </div>
                     </div>
                   ) : dayPlan.outfit.imageUrl ? (
-                    <div onClick={() => onImageZoom(dayPlan.outfit.imageUrl!)} className="w-full h-full cursor-zoom-in">
-                      <img src={dayPlan.outfit.imageUrl} alt={`Virtual try-on for ${dayPlan.day}`} className="w-full h-full object-cover object-top" />
-                    </div>
+                    <>
+                      <div onClick={() => onImageZoom(dayPlan.outfit.imageUrl!)} className="w-full h-full cursor-zoom-in">
+                        <img src={dayPlan.outfit.imageUrl} alt={`Virtual try-on for ${dayPlan.day}`} className="w-full h-full object-cover object-top" />
+                      </div>
+                      <button
+                          onClick={(e) => { e.stopPropagation(); onDownloadImage(dayPlan.outfit.imageUrl!, `weekly-plan-${dayPlan.day.toLowerCase()}`) }}
+                          className="absolute top-3 right-3 p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors z-10"
+                          title="Download image"
+                          aria-label="Download image"
+                      >
+                          <DownloadIcon className="w-6 h-6" />
+                      </button>
+                    </>
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                         <div className="text-center text-gray-500">

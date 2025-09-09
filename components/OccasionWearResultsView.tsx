@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Occasion, OccasionWearResults } from '../types';
-import { ArrowLeftIcon, GiftIcon, StarIcon, ExclamationTriangleIcon } from './Icons';
+import { ArrowLeftIcon, GiftIcon, StarIcon, ExclamationTriangleIcon, DownloadIcon } from './Icons';
 import ProductItem from './ProductItem';
 
 interface OccasionWearResultsViewProps {
@@ -8,9 +8,10 @@ interface OccasionWearResultsViewProps {
   occasion: Occasion;
   onReset: () => void;
   onImageZoom: (url: string) => void;
+  onDownloadImage: (imageUrl: string, filename: string) => void;
 }
 
-const OccasionWearResultsView: React.FC<OccasionWearResultsViewProps> = ({ results, occasion, onReset, onImageZoom }) => {
+const OccasionWearResultsView: React.FC<OccasionWearResultsViewProps> = ({ results, occasion, onReset, onImageZoom, onDownloadImage }) => {
   if (!results) return null;
 
   return (
@@ -39,9 +40,19 @@ const OccasionWearResultsView: React.FC<OccasionWearResultsViewProps> = ({ resul
                     </div>
                   </div>
                 ) : outfit.imageUrl ? (
-                  <div onClick={() => onImageZoom(outfit.imageUrl!)} className="w-full h-full cursor-zoom-in">
-                    <img src={outfit.imageUrl} alt={`Virtual try-on for ${outfit.occasion}`} className="w-full h-full object-cover object-top" />
-                  </div>
+                  <>
+                    <div onClick={() => onImageZoom(outfit.imageUrl!)} className="w-full h-full cursor-zoom-in">
+                      <img src={outfit.imageUrl} alt={`Virtual try-on for ${outfit.occasion}`} className="w-full h-full object-cover object-top" />
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDownloadImage(outfit.imageUrl!, `occasion-wear-${occasion.toLowerCase().replace(/\s+/g, '-')}`) }}
+                      className="absolute top-3 right-3 p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors z-10"
+                      title="Download image"
+                      aria-label="Download image"
+                    >
+                        <DownloadIcon className="w-6 h-6" />
+                    </button>
+                  </>
                 ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                         <div className="text-center text-gray-500">

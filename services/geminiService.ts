@@ -188,7 +188,7 @@ async function generateImagesForCombos(combos: OutfitCombo[], imageBase64: strin
             : `Top: ${combo.top?.description}, Bottom: ${combo.bottom?.description}`;
         const fullOutfitDescription = `${outfitDescription}, Shoes: ${combo.shoes.description}, Accessories: ${combo.accessories.description}.`;
         
-        const imageGenPrompt = `From the provided image, create a new photorealistic image of the person, but dress them in a different outfit suitable for a '${combo.occasion}'. The new outfit is: ${fullOutfitDescription}. Preserve the person's face, hair, and likeness from the original photo. The background should be a clean, minimalist studio setting.`;
+        const imageGenPrompt = `From the provided image, create a new photorealistic image of the person, but dress them in a different outfit suitable for a '${combo.occasion}'. The new outfit is: ${fullOutfitDescription}. Preserve the person's face, hair, and likeness from the original photo. The background should be a realistic and aesthetically pleasing real-world location that matches the vibe of the outfit and occasion (e.g., a bustling city street for a casual look, a beautiful park for a daytime event, or an elegant interior for formal wear).`;
         
         const imageGenTextPart = { text: imageGenPrompt };
 
@@ -232,7 +232,7 @@ async function generateCoordinatedImagesForSets(sets: CoordinatedOutfitSet[], im
         const imageGenPrompt = `From the provided image containing two people, create a new photorealistic image of BOTH people together. Dress them in new, coordinated outfits for a '${set.occasion}'.
         - The first person's outfit is: ${outfit1Desc}, Shoes: ${set.person1Outfit.shoes.description}, Accessories: ${set.person1Outfit.accessories.description}.
         - The second person's outfit is: ${outfit2Desc}, Shoes: ${set.person2Outfit.shoes.description}, Accessories: ${set.person2Outfit.accessories.description}.
-        Preserve both individuals' faces, hair, and likenesses from the original photo. The background should be a clean, minimalist studio setting relevant to the occasion.`;
+        Preserve both individuals' faces, hair, and likenesses from the original photo. The background should be a realistic and aesthetically pleasing real-world location that is appropriate for the coordinated outfits and the specified occasion. Both individuals should look natural in the environment.`;
         
         const imageGenTextPart = { text: imageGenPrompt };
 
@@ -363,7 +363,7 @@ export const regenerateOutfitCombo = async (imageBase64: string, mimeType: strin
         : `Top: ${newComboText.top?.description}, Bottom: ${newComboText.bottom?.description}`;
       const fullOutfitDescription = `${outfitDescription}, Shoes: ${newComboText.shoes.description}, Accessories: ${newComboText.accessories.description}.`;
 
-      const imageGenPrompt = `From the provided image, create a new photorealistic image of the person, but dress them in a different outfit suitable for a '${newComboText.occasion}'. The new outfit is: ${fullOutfitDescription}. Preserve the person's face, hair, and likeness from the original photo. The background should be a clean, minimalist studio setting.`;
+      const imageGenPrompt = `From the provided image, create a new photorealistic image of the person, but dress them in a different outfit suitable for a '${newComboText.occasion}'. The new outfit is: ${fullOutfitDescription}. Preserve the person's face, hair, and likeness from the original photo. The background should be a realistic and aesthetically pleasing real-world location that matches the vibe of the outfit and occasion (e.g., a bustling city street for a casual look, a beautiful park for a daytime event, or an elegant interior for formal wear).`;
       
       const imageGenTextPart = { text: imageGenPrompt };
 

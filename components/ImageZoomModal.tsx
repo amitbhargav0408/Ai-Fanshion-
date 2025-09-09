@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
-import { XCircleIcon } from './Icons';
+import { XCircleIcon, DownloadIcon } from './Icons';
 
 interface ImageZoomModalProps {
   imageUrl: string;
   onClose: () => void;
+  onDownload: (imageUrl: string, filename: string) => void;
 }
 
-const ImageZoomModal: React.FC<ImageZoomModalProps> = ({ imageUrl, onClose }) => {
+const ImageZoomModal: React.FC<ImageZoomModalProps> = ({ imageUrl, onClose, onDownload }) => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -47,6 +48,14 @@ const ImageZoomModal: React.FC<ImageZoomModalProps> = ({ imageUrl, onClose }) =>
           alt="Zoomed virtual try-on"
           className="w-full h-full object-contain rounded-lg"
         />
+        <button
+            onClick={() => onDownload(imageUrl, 'ai-stylist-outfit')}
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 px-6 py-3 bg-yellow-400 text-black font-semibold rounded-full hover:bg-yellow-300 transition-all duration-300 transform hover:scale-105 shadow-lg"
+            aria-label="Download image"
+        >
+            <DownloadIcon className="w-6 h-6" />
+            Download Image
+        </button>
       </div>
     </div>
   );

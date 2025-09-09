@@ -7,8 +7,20 @@ import LoadingSpinner from './components/LoadingSpinner';
 import WeeklyPlanView from './components/WeeklyPlanView';
 import OccasionWearResultsView from './components/OccasionWearResultsView';
 import ProductItem from './components/ProductItem';
-import { SparklesIcon, ExclamationTriangleIcon, CalendarIcon, ShareIcon, CalendarWeekIcon, CheckCircleIcon, GiftIcon, ShoppingBagIcon, InstagramIcon, PinterestIcon, FacebookIcon, WhatsAppIcon, HeartIcon, StarIcon, SareeIcon, ArrowLeftIcon, UserIcon, UsersIcon, StylistLogoIcon } from './components/Icons';
+import { SparklesIcon, ExclamationTriangleIcon, CalendarIcon, ShareIcon, CalendarWeekIcon, CheckCircleIcon, GiftIcon, ShoppingBagIcon, InstagramIcon, PinterestIcon, FacebookIcon, WhatsAppIcon, HeartIcon, StarIcon, SareeIcon, ArrowLeftIcon, UserIcon, UsersIcon, StylistLogoIcon, DownloadIcon } from './components/Icons';
 import ImageZoomModal from './components/ImageZoomModal';
+
+const handleDownloadImage = (imageUrl: string, filename: string) => {
+    if (!imageUrl) return;
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    const mimeType = imageUrl.split(';')[0].split(':')[1] || 'image/png';
+    const extension = mimeType.split('/')[1] || 'png';
+    link.download = `${filename}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
 // Sub-component for displaying Coordinated Advice Results
 const CoordinatedAdviceView: React.FC<{ advice: CoordinatedAdvice; onReset: () => void; onImageZoom: (url: string) => void; }> = ({ advice, onReset, onImageZoom }) => {
@@ -42,9 +54,19 @@ const CoordinatedAdviceView: React.FC<{ advice: CoordinatedAdvice; onReset: () =
                                       </div>
                                     </div>
                                   ) : set.imageUrl ? (
-                                    <div onClick={() => onImageZoom(set.imageUrl!)} className="w-full h-full cursor-zoom-in">
-                                      <img src={set.imageUrl} alt={`Virtual try-on for ${set.occasion}`} className="w-full h-full object-cover object-top" />
-                                    </div>
+                                    <>
+                                      <div onClick={() => onImageZoom(set.imageUrl!)} className="w-full h-full cursor-zoom-in">
+                                        <img src={set.imageUrl} alt={`Virtual try-on for ${set.occasion}`} className="w-full h-full object-cover object-top" />
+                                      </div>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleDownloadImage(set.imageUrl!, `coordinated-outfit-${set.occasion.toLowerCase().replace(/\s+/g, '-')}`) }}
+                                        className="absolute top-3 right-3 p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors z-10"
+                                        title="Download image"
+                                        aria-label="Download image"
+                                      >
+                                          <DownloadIcon className="w-6 h-6" />
+                                      </button>
+                                    </>
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center animate-pulse">
                                       <div className="text-center text-gray-400">
@@ -381,7 +403,17 @@ const App: React.FC = () => {
       <div className="w-full max-w-md mx-auto">
         {isOotdLoading && ( <div className="text-center p-8 bg-gray-100/50 rounded-lg backdrop-blur-sm"><div className="flex justify-center mb-4"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800"></div></div><p className="text-gray-700 font-semibold">Generating daily inspiration...</p></div> )}
         {ootdError && ( <div className="mt-4 p-4 bg-red-100 border border-red-300 text-red-700 rounded-lg flex items-center"><ExclamationTriangleIcon className="w-5 h-5 mr-3" /><p>{ootdError}</p></div> )}
-        {ootd && ( <div className="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden animate-fade-in"><img src={ootd.imageUrl} alt="Outfit of the day" className="w-full h-80 object-cover" /><div className="p-6"><p className="text-gray-600 italic">{ootd.description}</p><div className="mt-4 text-right"><button onClick={handleShareOotd} className="inline-flex items-center px-4 py-2 bg-blue-400 text-black font-semibold rounded-full hover:bg-blue-300 transition-colors disabled:opacity-50"><ShareIcon className="w-5 h-5 mr-2" />{ootdShareStatus === 'copied' ? 'Copied!' : 'Share'}</button></div></div></div> )}
+        {ootd && ( <div className="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden animate-fade-in"><img src={ootd.imageUrl} alt="Outfit of the day" className="w-full h-80 object-cover" /><div className="p-6"><p className="text-gray-600 italic">{ootd.description}</p><div className="mt-4 flex justify-end items-center gap-2">
+            <button
+                onClick={() => handleDownloadImage(ootd.imageUrl, 'outfit-of-the-day')}
+                className="p-2.5 bg-gray-200 text-black rounded-full hover:bg-gray-300 transition-colors"
+                aria-label="Download image"
+                title="Download Image"
+            >
+                <DownloadIcon className="w-5 h-5" />
+            </button>
+            <button onClick={handleShareOotd} className="inline-flex items-center px-4 py-2 bg-blue-400 text-black font-semibold rounded-full hover:bg-blue-300 transition-colors disabled:opacity-50"><ShareIcon className="w-5 h-5 mr-2" />{ootdShareStatus === 'copied' ? 'Copied!' : 'Share'}</button>
+        </div></div></div> )}
       </div>
     );
   };
@@ -535,9 +567,9 @@ const App: React.FC = () => {
      return (
         <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl shadow-gray-200 overflow-hidden">
             <div className="p-6 md:p-10">
-                {fashionAdvice && <StyleResults advice={fashionAdvice} onReset={handleReset} onRegenerateOutfit={handleRegenerateOutfit} onRateOutfit={handleRateOutfit} onImageZoom={handleImageZoom} />}
-                {weeklyPlan && <WeeklyPlanView plan={weeklyPlan} onReset={handleReset} onImageZoom={handleImageZoom} />}
-                {occasionWearResults && selectedOccasion && <OccasionWearResultsView results={occasionWearResults} occasion={selectedOccasion} onReset={handleReset} onImageZoom={handleImageZoom} />}
+                {fashionAdvice && <StyleResults advice={fashionAdvice} onReset={handleReset} onRegenerateOutfit={handleRegenerateOutfit} onRateOutfit={handleRateOutfit} onImageZoom={handleImageZoom} onDownloadImage={handleDownloadImage} />}
+                {weeklyPlan && <WeeklyPlanView plan={weeklyPlan} onReset={handleReset} onImageZoom={handleImageZoom} onDownloadImage={handleDownloadImage} />}
+                {occasionWearResults && selectedOccasion && <OccasionWearResultsView results={occasionWearResults} occasion={selectedOccasion} onReset={handleReset} onImageZoom={handleImageZoom} onDownloadImage={handleDownloadImage} />}
                 {coordinatedAdvice && <CoordinatedAdviceView advice={coordinatedAdvice} onReset={handleReset} onImageZoom={handleImageZoom} />}
             </div>
         </div>
@@ -559,7 +591,7 @@ const App: React.FC = () => {
             </div>
         )}
 
-        {zoomedImageUrl && <ImageZoomModal imageUrl={zoomedImageUrl} onClose={handleCloseZoom} />}
+        {zoomedImageUrl && <ImageZoomModal imageUrl={zoomedImageUrl} onClose={handleCloseZoom} onDownload={handleDownloadImage} />}
 
         <footer className="text-center mt-16 pt-8 border-t border-gray-200">
             <div className="flex justify-center gap-6 mb-4">
