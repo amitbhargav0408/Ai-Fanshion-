@@ -223,6 +223,31 @@ const StyleResults: React.FC<StyleResultsProps> = ({ advice, onReset, onRegenera
             ))}
           </div>
         </section>
+
+        <section>
+          <h2 className="flex items-center text-3xl font-bold mb-4 text-black">
+            <PaletteIcon className="w-8 h-8 mr-3 text-yellow-400" />
+            Color Combinations
+          </h2>
+          <div className="space-y-4">
+            {advice.colorCombinations.map((combo, index) => (
+              <div key={index} className="bg-gray-50 border border-gray-200 p-5 rounded-xl">
+                <h3 className="font-bold text-xl text-black">{combo.paletteName}</h3>
+                <p className="text-gray-600 mt-1 mb-4 text-sm">{combo.description}</p>
+                <div className="flex h-12 rounded-lg overflow-hidden shadow-inner bg-gray-200">
+                  {combo.colors.map((color, cIndex) => (
+                    <div
+                      key={cIndex}
+                      className="flex-1 transition-all duration-300 hover:flex-[2]"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    ></div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
         
         <section>
           <h2 className="flex items-center text-3xl font-bold mb-4 text-black">
@@ -322,31 +347,6 @@ const StyleResults: React.FC<StyleResultsProps> = ({ advice, onReset, onRegenera
               </div>
             ))}
           </div>
-        </section>
-
-        <section>
-          <h2 className="flex items-center text-3xl font-bold mb-4 text-black">
-            <PaletteIcon className="w-8 h-8 mr-3 text-yellow-400" />
-            Color Combinations
-          </h2>
-          {advice.colorCombinations.map((combo, index) => (
-            <div key={index} className="bg-gray-100 p-6 rounded-lg shadow-sm mb-4">
-              <h3 className="font-bold text-xl text-black">{combo.paletteName}</h3>
-              <div className="flex flex-wrap gap-3 my-3">
-                {combo.colors.map((color, cIndex) => (
-                  <div key={cIndex} className="flex items-center gap-2 px-3 py-1 text-sm font-medium text-gray-700 bg-white rounded-full shadow-sm border border-gray-300">
-                    <span
-                      className="w-4 h-4 rounded-full block border border-slate-300"
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    ></span>
-                    <span>{color}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-gray-600">{combo.description}</p>
-            </div>
-          ))}
         </section>
 
         <section>

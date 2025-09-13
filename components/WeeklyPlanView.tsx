@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { WeeklyPlan } from '../types';
-import { ArrowLeftIcon, CalendarWeekIcon, StarIcon, ExclamationTriangleIcon, DownloadIcon } from './Icons';
+import { ArrowLeftIcon, CalendarWeekIcon, StarIcon, ExclamationTriangleIcon, DownloadIcon, ShareIcon } from './Icons';
 import ProductItem from './ProductItem';
 
 interface WeeklyPlanViewProps {
@@ -13,7 +13,40 @@ interface WeeklyPlanViewProps {
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({ plan, onReset, onImageZoom, onDownloadImage }) => {
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied'>('idle');
+
   if (!plan) return null;
+
+  const handleSharePlan = async () => {
+    if (!plan) return;
+
+    const summary = plan.slice(0, 3).map(dayPlan => `- ${dayPlan.day}: ${dayPlan.occasion}`).join('\n');
+    
+    const shareText = `My AI Fashion Stylist just planned my whole week of outfits! 👗✨ Here's a glimpse:\n\n${summary}\n\nDiscover your own weekly style plan! #AIStylist #WeeklyWardrobe #FashionPlanner`;
+
+    const shareData = {
+        title: 'My AI-Generated Weekly Style Plan',
+        text: shareText,
+        url: window.location.href,
+    };
+
+    if (navigator.share) {
+        try {
+            await navigator.share(shareData);
+        } catch (err) {
+            console.error('Error sharing weekly plan:', err);
+        }
+    } else {
+        try {
+            await navigator.clipboard.writeText(shareText);
+            setShareStatus('copied');
+            setTimeout(() => setShareStatus('idle'), 2500);
+        } catch (err) {
+            console.error('Failed to copy weekly plan to clipboard:', err);
+            alert('Failed to copy plan to clipboard.');
+        }
+    }
+  };
 
   // Sort the plan according to the dayOrder array
   const sortedPlan = [...plan].sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
@@ -24,6 +57,14 @@ const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({ plan, onReset, onImageZ
         <button onClick={onReset} className="inline-flex items-center text-gray-600 hover:text-black font-semibold transition-colors">
           <ArrowLeftIcon className="w-5 h-5 mr-2" />
           Start Over
+        </button>
+        <button 
+          onClick={handleSharePlan} 
+          className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 font-semibold rounded-full hover:bg-blue-200 transition-colors disabled:opacity-50"
+          disabled={shareStatus === 'copied'}
+        >
+          <ShareIcon className="w-5 h-5 mr-2" />
+          {shareStatus === 'copied' ? 'Copied!' : 'Share Plan'}
         </button>
       </div>
 
